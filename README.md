@@ -14,7 +14,7 @@ GPIO 04 -> LED B1 (bit 1) -> Resistencia 220 Ohms -> GND
 
 GPIO 05 -> LED B2 (bit 2) -> Resistencia 220 Ohms -> GND
 
-GPIO 28 -> LED B3 (bit 3) -> Resistencia 220 Ohms -> GND
+GPIO 18 -> LED B3 (bit 3) -> Resistencia 220 Ohms -> GND
 
 GPIO 13 -> Boton Dirección -> GND
 
