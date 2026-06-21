@@ -13,7 +13,7 @@
 
 static const char *TAG = "MANAGER";
 
-/* Handles de las tareas; el manager los usa para suspender/reanudar */
+// Handles de las tareas. El manager los usa para suspenderlas o reanudarlas
 static TaskHandle_t h_leds[4];
 static TaskHandle_t h_btn_start;
 static TaskHandle_t h_btn_dir;
@@ -21,12 +21,7 @@ static TaskHandle_t h_btn_speed;
 static TaskHandle_t h_counter;
 static TaskHandle_t h_manager;
 
-/* Parámetros de cada tarea LED.
-   Cada LED representa un bit del valor BCD:
-     LED_B0 → bit 0 (valor 1)
-     LED_B1 → bit 1 (valor 2)
-     LED_B2 → bit 2 (valor 4)
-     LED_B3 → bit 3 (valor 8)  */
+
 static LedTaskParams_t led_params[4] =
 {
     { .gpio = LED_B0, .bit_position = 0, .name = "LED_B0" },
@@ -35,7 +30,7 @@ static LedTaskParams_t led_params[4] =
     { .gpio = LED_B3, .bit_position = 3, .name = "LED_B3" },
 };
 
-/* Parámetros de los tres botones */
+// Parámetros de los tres botones
 static ButtonTaskParams_t btn_start =
 {
     .gpio = BTN_START,
@@ -57,15 +52,12 @@ static ButtonTaskParams_t btn_speed =
     .type = BUTTON_SPEED
 };
 
-/* Convierte el estado de una tarea FreeRTOS a texto legible.
-   Corrección del original: los strings "SUSPENDED" y "RUNNING" estaban
-   intercambiados. */
 static const char *state_to_string(eTaskState state)
 {
-    switch (state)   /* corrección: el parámetro es 'state', no 'eTaskState' */
+    switch (state) 
     {
         case eRunning:
-            return "RUNNING";      /* corrección: estaba "SUSPENDED" */
+            return "RUNNING";
 
         case eReady:
             return "READY";
@@ -74,7 +66,7 @@ static const char *state_to_string(eTaskState state)
             return "BLOCKED";
 
         case eSuspended:
-            return "SUSPENDED";    /* corrección: estaba "RUNNING" */
+            return "SUSPENDED";  
 
         case eDeleted:
             return "DELETED";
@@ -84,18 +76,15 @@ static const char *state_to_string(eTaskState state)
     }
 }
 
-/* Pausa el sistema: suspende el contador y los botones de dirección/velocidad.
-   El botón START/PAUSE sigue activo para poder reanudar. */
+// Pausa el sistema, suspende el contador y los botones de dirección y de velocidad
 static void manager_pause_system(void)
 {
     g_system.mode = SYSTEM_PAUSED;
 
-    /* Suspende el contador; conserva su valor actual y no da más pasos.
-       Solo puede reanudarse con vTaskResume(). */
+    // Suspende el contador y conserva su valor actual y no da más pasos. Solo puede reanudarse con vTaskResume()
     vTaskSuspend(h_counter);
 
-    /* Suspende los botones de dirección y velocidad.
-       En pausa no tiene sentido cambiarlos. */
+    // Suspende los botones de dirección y velocidad
     vTaskSuspend(h_btn_dir);
     vTaskSuspend(h_btn_speed);
 
@@ -106,18 +95,17 @@ static void manager_run_system(void)
 {
     g_system.mode = SYSTEM_RUNNING;
 
-    /* Primero reanuda los botones de control */
+    // Reanuda los botones de control
     vTaskResume(h_btn_dir);
     vTaskResume(h_btn_speed);
 
-    /* Luego reanuda el contador; continúa desde donde se quedó */
+    // Continua desde donde se quedo
     vTaskResume(h_counter);
 
     ESP_LOGW(TAG, "Sistema RUNNING");
 }
 
-/* Invierte la dirección de conteo.
-   Corrección del original: el else también asignaba COUNT_DOWN en lugar de COUNT_UP. */
+// Invierte la dirección de conteo
 static void manager_toggle_direction(void)
 {
     if (g_system.direction == COUNT_UP)
@@ -126,15 +114,14 @@ static void manager_toggle_direction(void)
     }
     else
     {
-        g_system.direction = COUNT_UP;   /* corrección: era COUNT_DOWN */
+        g_system.direction = COUNT_UP; 
     }
 
     ESP_LOGI(TAG, "Nueva direccion: %s",
              g_system.direction == COUNT_UP ? "UP" : "DOWN");
 }
 
-/* Alterna la velocidad entre lenta (500 ms) y rápida (250 ms).
-   Corrección del original: el else también asignaba SPEED_FAST_MS. */
+// Alterna la velocidad entre lenta (500 ms) y rápida (250 ms).
 static void manager_toggle_speed(void)
 {
     if (g_system.period_ms == SPEED_SLOW_MS)
@@ -143,13 +130,13 @@ static void manager_toggle_speed(void)
     }
     else
     {
-        g_system.period_ms = SPEED_SLOW_MS;   /* corrección: era SPEED_FAST_MS */
+        g_system.period_ms = SPEED_SLOW_MS;
     }
 
     ESP_LOGI(TAG, "Nueva velocidad: %lu ms", (unsigned long)g_system.period_ms);
 }
 
-/* Imprime el estado de cada tarea y el estado global del sistema */
+// Imprime el estado de cada tarea y el estado global del sistema
 static void manager_print_states(void)
 {
     ESP_LOGI(TAG, "------ ESTADOS ------");
@@ -183,19 +170,16 @@ static void task_manager(void *pvParameters)
 
     while (1)
     {
-        /* Lee el evento pendiente que los botones pudieron haber escrito */
-        ManagerEvent_t events = g_system.pending_event;   /* corrección: 'events' en lugar de 'event' */
+        ManagerEvent_t events = g_system.pending_event;
 
         if (events != MANAGER_EVENT_NONE)
         {
-            /* Consume el evento: lo limpia para que no se procese dos veces */
             g_system.pending_event = MANAGER_EVENT_NONE;
 
-            switch (events)   /* corrección: usar 'events' consistentemente */
+            switch (events)
             {
                 case MANAGER_EVENT_SPEED:
-                    /* Cambio de velocidad solo si el sistema está corriendo.
-                       Corrección: ambas ramas llamaban a manager_run_system(). */
+                    // Cambia de velocidad solo si el sistema está corriendo
                     if (g_system.mode == SYSTEM_RUNNING)
                     {
                         manager_toggle_speed();
@@ -207,7 +191,7 @@ static void task_manager(void *pvParameters)
                     break;
 
                 case MANAGER_EVENT_DIRECTION:
-                    /* Cambio de dirección solo si el sistema está corriendo */
+                    // Cambia de dirección solo si el sistema está corriendo
                     if (g_system.mode == SYSTEM_RUNNING)
                     {
                         manager_toggle_direction();
@@ -216,11 +200,10 @@ static void task_manager(void *pvParameters)
                     {
                         ESP_LOGW(TAG, "Direccion ignorada: sistema pausado");
                     }
-                    break;   /* corrección: faltaba el break en el original */
+                    break;
 
                 case MANAGER_EVENT_START_PAUSE:
-                    /* Alterna entre RUNNING y PAUSED.
-                       Corrección: ambas ramas llamaban a manager_toggle_speed(). */
+
                     if (g_system.mode == SYSTEM_RUNNING)
                     {
                         manager_pause_system();
@@ -236,23 +219,19 @@ static void task_manager(void *pvParameters)
             }
         }
 
-        /* Log periódico de estados cada 2 segundos */
         if ((xTaskGetTickCount() - last_print) >= pdMS_TO_TICKS(2000))
         {
             last_print = xTaskGetTickCount();
             manager_print_states();
         }
 
-        /* El manager revisa eventos cada 20 ms (no cada 20000 ms como en el original) */
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
 void app_tasks_create(void)
 {
-    /* --- Crea las 4 tareas de LEDs ---
-       Cada una maneja un solo pin GPIO y refleja un bit del valor BCD.
-       Prioridad 1 (baja): solo actualizan pines, no son críticas de tiempo. */
+    // Crea las 4 tareas de LEDs
     for (int i = 0; i < 4; i++)
     {
         xTaskCreate(led_task,
@@ -263,22 +242,16 @@ void app_tasks_create(void)
                     &h_leds[i]);
     }
 
-    /* --- Crea las 3 tareas de botones ---
-       Prioridad 2: deben responder al usuario antes de que el manager actúe. */
+    // Crea las 3 tareas de botones
     xTaskCreate(button_task, "BTN_START", 2048, (void *)&btn_start, 2, &h_btn_start);
     xTaskCreate(button_task, "BTN_DIR",   2048, (void *)&btn_dir,   2, &h_btn_dir);
     xTaskCreate(button_task, "BTN_SPEED", 2048, (void *)&btn_speed, 2, &h_btn_speed);
 
-    /* --- Crea la tarea del contador ---
-       Prioridad 2: misma que los botones; el manager la suspende/reanuda. */
+    // Crea la tarea del contador
     xTaskCreate(counter_task, "COUNTER", 2048, NULL, 2, &h_counter);
 
-    /* --- Crea la tarea del manager ---
-       Prioridad 3 (la más alta): debe procesar eventos antes que las demás. */
+    // Crea la tarea del manager
     xTaskCreate(task_manager, "MANAGER", 2048, NULL, 3, &h_manager);
 
-    /* Estado inicial: sistema pausado.
-       Suspende el contador y los botones de dirección/velocidad.
-       El botón START/PAUSE queda activo para iniciar el conteo. */
     manager_pause_system();
 }
