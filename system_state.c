@@ -6,7 +6,7 @@ SystemState_t g_system;
 
 void system_state_init(void)
 {
-    // 1. El contador arranca en cero
+    // El contador arranca en cero
     g_system.value = 0;
 
     // Velocidad inicial: lento (500 ms)
